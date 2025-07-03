@@ -1,0 +1,47 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection - users can read/write their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Listings collection - public read, authenticated write
+    match /listings/{listingId} {
+      // Anyone can read active listings (no auth required for browsing)
+      allow read: if true;
+      
+      // Only authenticated users can create listings
+      allow create: if request.auth != null 
+        && request.auth.uid == request.resource.data.user_id;
+      
+      // Only the owner can update/delete their listings
+      allow update, delete: if request.auth != null 
+        && request.auth.uid == resource.data.user_id;
+    }
+    
+    // Messages collection - only participants can access
+    match /messages/{messageId} {
+      allow read, write: if request.auth != null 
+        && (request.auth.uid == resource.data.sender_id 
+            || request.auth.uid == resource.data.receiver_id);
+      allow create: if request.auth != null 
+        && request.auth.uid == request.resource.data.sender_id;
+    }
+    
+    // Reports collection - authenticated users can create and read their own
+    match /reports/{reportId} {
+      allow read, create: if request.auth != null 
+        && request.auth.uid == resource.data.reporter_id;
+    }
+    
+    // Ratings collection - public read, authenticated write
+    match /ratings/{ratingId} {
+      allow read: if true;
+      allow create, update: if request.auth != null 
+        && request.auth.uid == resource.data.rater_id;
+    }
+  }
+}
